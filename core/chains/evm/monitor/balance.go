@@ -89,7 +89,7 @@ func (bm *balanceMonitor) Name() string {
 }
 
 func (bm *balanceMonitor) HealthReport() map[string]error {
-	return map[string]error{bm.Name(): bm.StartStopOnce.Healthy()}
+	return map[string]error{bm.Name(): bm.Healthy()}
 }
 
 // OnNewLongestChain checks the balance for each key
