@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
+	"github.com/smartcontractkit/chainlink/v2/core/services/functions/offchain"
 	"github.com/smartcontractkit/chainlink/v2/core/services/gateway/api"
 	"github.com/smartcontractkit/chainlink/v2/core/services/gateway/common"
 	"github.com/smartcontractkit/chainlink/v2/core/services/gateway/connector"
@@ -21,13 +22,15 @@ import (
 type functionsConnectorHandler struct {
 	utils.StartStopOnce
 
-	connector   connector.GatewayConnector
-	signerKey   *ecdsa.PrivateKey
-	nodeAddress string
-	storage     s4.Storage
-	allowlist   functions.OnchainAllowlist
-	rateLimiter *hc.RateLimiter
-	lggr        logger.Logger
+	connector       connector.GatewayConnector
+	signerKey       *ecdsa.PrivateKey
+	nodeAddress     string
+	storage         s4.Storage
+	allowlist       functions.OnchainAllowlist
+	rateLimiter     *hc.RateLimiter
+	listener        *FunctionsListener
+	transmitterHook offchain.TransmitterHook
+	lggr            logger.Logger
 }
 
 var (
@@ -35,17 +38,19 @@ var (
 	_ connector.GatewayConnectorHandler = &functionsConnectorHandler{}
 )
 
-func NewFunctionsConnectorHandler(nodeAddress string, signerKey *ecdsa.PrivateKey, storage s4.Storage, allowlist functions.OnchainAllowlist, rateLimiter *hc.RateLimiter, lggr logger.Logger) (*functionsConnectorHandler, error) {
+func NewFunctionsConnectorHandler(nodeAddress string, signerKey *ecdsa.PrivateKey, storage s4.Storage, allowlist functions.OnchainAllowlist, rateLimiter *hc.RateLimiter, listener *FunctionsListener, transmitterHook offchain.TransmitterHook, lggr logger.Logger) (*functionsConnectorHandler, error) {
 	if signerKey == nil || storage == nil || allowlist == nil || rateLimiter == nil {
 		return nil, fmt.Errorf("signerKey, storage, allowlist and rateLimiter must be non-nil")
 	}
 	return &functionsConnectorHandler{
-		nodeAddress: nodeAddress,
-		signerKey:   signerKey,
-		storage:     storage,
-		allowlist:   allowlist,
-		rateLimiter: rateLimiter,
-		lggr:        lggr.Named("FunctionsConnectorHandler"),
+		nodeAddress:     nodeAddress,
+		signerKey:       signerKey,
+		storage:         storage,
+		allowlist:       allowlist,
+		rateLimiter:     rateLimiter,
+		listener:        listener,
+		transmitterHook: transmitterHook,
+		lggr:            lggr.Named("FunctionsConnectorHandler"),
 	}, nil
 }
 
@@ -76,6 +81,8 @@ func (h *functionsConnectorHandler) HandleGatewayMessage(ctx context.Context, ga
 		h.handleSecretsList(ctx, gatewayId, body, fromAddr)
 	case functions.MethodSecretsSet:
 		h.handleSecretsSet(ctx, gatewayId, body, fromAddr)
+	case functions.MethodRequest:
+		h.handleRequest(ctx, gatewayId, body, fromAddr)
 	default:
 		h.lggr.Errorw("unsupported method", "id", gatewayId, "method", body.Method)
 	}
@@ -91,6 +98,10 @@ func (h *functionsConnectorHandler) Close() error {
 	return h.StopOnce("FunctionsConnectorHandler", func() error {
 		return h.allowlist.Close()
 	})
+}
+
+func (h *functionsConnectorHandler) handleRequest(ctx context.Context, gatewayId string, body *api.MessageBody, fromAddr ethCommon.Address) {
+	// TODO translate into h.listener.HanldleRequest()
 }
 
 func (h *functionsConnectorHandler) handleSecretsList(ctx context.Context, gatewayId string, body *api.MessageBody, fromAddr ethCommon.Address) {

@@ -475,6 +475,10 @@ func (l *FunctionsListener) parseCBOR(requestId RequestID, cborData []byte, maxS
 	return &requestData, nil
 }
 
+func (l *FunctionsListener) HandleRequest(ctx context.Context) {
+
+}
+
 func (l *FunctionsListener) handleRequest(ctx context.Context, requestID RequestID, subscriptionId uint64, subscriptionOwner common.Address, flags RequestFlags, requestData *RequestData) {
 	startTime := time.Now()
 	defer func() {

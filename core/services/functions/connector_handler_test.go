@@ -34,7 +34,7 @@ func TestFunctionsConnectorHandler(t *testing.T) {
 	require.NoError(t, err)
 	allowlist.On("Start", mock.Anything).Return(nil)
 	allowlist.On("Close", mock.Anything).Return(nil)
-	handler, err := functions.NewFunctionsConnectorHandler(addr.Hex(), privateKey, storage, allowlist, rateLimiter, logger)
+	handler, err := functions.NewFunctionsConnectorHandler(addr.Hex(), privateKey, storage, allowlist, rateLimiter, nil, nil, logger)
 	require.NoError(t, err)
 
 	handler.SetConnector(connector)
