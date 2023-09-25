@@ -58,10 +58,10 @@ type ObservedLogPoller struct {
 // NewObservedLogPoller creates an observed version of log poller created by NewLogPoller
 // Please see ObservedLogPoller for more details on how latencies are measured
 func NewObservedLogPoller(orm *ORM, ec Client, lggr logger.Logger, pollPeriod time.Duration,
-	finalityDepth int64, backfillBatchSize int64, rpcBatchSize int64, keepBlocksDepth int64) LogPoller {
+	useFinalityTag bool, finalityDepth int64, backfillBatchSize int64, rpcBatchSize int64, keepBlocksDepth int64) LogPoller {
 
 	return &ObservedLogPoller{
-		LogPoller:     NewLogPoller(orm, ec, lggr, pollPeriod, finalityDepth, backfillBatchSize, rpcBatchSize, keepBlocksDepth),
+		LogPoller:     NewLogPoller(orm, ec, lggr, pollPeriod, useFinalityTag, finalityDepth, backfillBatchSize, rpcBatchSize, keepBlocksDepth),
 		queryDuration: lpQueryDuration,
 		datasetSize:   lpQueryDataSets,
 		chainId:       orm.chainID.String(),
@@ -140,15 +140,9 @@ func (o *ObservedLogPoller) LogsDataWordRange(eventSig common.Hash, address comm
 	})
 }
 
-func (o *ObservedLogPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs int, qopts ...pg.QOpt) ([]Log, error) {
+func (o *ObservedLogPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs BlockConfsOptions, qopts ...pg.QOpt) ([]Log, error) {
 	return withObservedQueryAndResults(o, "LogsDataWordGreaterThan", func() ([]Log, error) {
 		return o.LogPoller.LogsDataWordGreaterThan(eventSig, address, wordIndex, wordValueMin, confs, qopts...)
-	})
-}
-
-func (o *ObservedLogPoller) LogsUntilBlockHashDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, untilBlockHash common.Hash, qopts ...pg.QOpt) ([]Log, error) {
-	return withObservedQueryAndResults(o, "LogsUntilBlockHashDataWordGreaterThan", func() ([]Log, error) {
-		return o.LogPoller.LogsUntilBlockHashDataWordGreaterThan(eventSig, address, wordIndex, wordValueMin, untilBlockHash, qopts...)
 	})
 }
 

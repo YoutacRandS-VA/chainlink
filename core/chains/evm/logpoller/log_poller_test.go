@@ -468,7 +468,7 @@ func TestLogPoller_SynchronizedWithGeth(t *testing.T) {
 		}, 10e6)
 		_, _, emitter1, err := log_emitter.DeployLogEmitter(owner, ec)
 		require.NoError(t, err)
-		lp := logpoller.NewLogPoller(orm, client.NewSimulatedBackendClient(t, ec, chainID), lggr, 15*time.Second, int64(finalityDepth), 3, 2, 1000)
+		lp := logpoller.NewLogPoller(orm, client.NewSimulatedBackendClient(t, ec, chainID), lggr, 15*time.Second, false, int64(finalityDepth), 3, 2, 1000)
 		for i := 0; i < finalityDepth; i++ { // Have enough blocks that we could reorg the full finalityDepth-1.
 			ec.Commit()
 		}
@@ -973,7 +973,7 @@ func TestLogPoller_DBErrorHandling(t *testing.T) {
 	ec.Commit()
 	ec.Commit()
 
-	lp := logpoller.NewLogPoller(o, client.NewSimulatedBackendClient(t, ec, chainID2), lggr, 1*time.Hour, 2, 3, 2, 1000)
+	lp := logpoller.NewLogPoller(o, client.NewSimulatedBackendClient(t, ec, chainID2), lggr, 1*time.Hour, false, 2, 3, 2, 1000)
 
 	err = lp.Replay(ctx, 5) // block number too high
 	require.ErrorContains(t, err, "Invalid replay block number")
@@ -1076,7 +1076,7 @@ func TestTooManyLogResults(t *testing.T) {
 	chainID := testutils.NewRandomEVMChainID()
 	db := pgtest.NewSqlxDB(t)
 	o := logpoller.NewORM(chainID, db, lggr, pgtest.NewQConfig(true))
-	lp := logpoller.NewLogPoller(o, ec, lggr, 1*time.Hour, 2, 20, 10, 1000)
+	lp := logpoller.NewLogPoller(o, ec, lggr, 1*time.Hour, false, 2, 20, 10, 1000)
 	expected := []int64{10, 5, 2, 1}
 
 	clientErr := client.JsonError{

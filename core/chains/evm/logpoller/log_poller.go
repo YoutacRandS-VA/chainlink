@@ -57,8 +57,22 @@ type LogPoller interface {
 	IndexedLogsTopicRange(eventSig common.Hash, address common.Address, topicIndex int, topicValueMin common.Hash, topicValueMax common.Hash, confs int, qopts ...pg.QOpt) ([]Log, error)
 	IndexedLogsWithSigsExcluding(address common.Address, eventSigA, eventSigB common.Hash, topicIndex int, fromBlock, toBlock int64, confs int, qopts ...pg.QOpt) ([]Log, error)
 	LogsDataWordRange(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin, wordValueMax common.Hash, confs int, qopts ...pg.QOpt) ([]Log, error)
-	LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs int, qopts ...pg.QOpt) ([]Log, error)
-	LogsUntilBlockHashDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, untilBlockHash common.Hash, qopts ...pg.QOpt) ([]Log, error)
+	LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs BlockConfsOptions, qopts ...pg.QOpt) ([]Log, error)
+}
+
+type BlockConfsOptions struct {
+	// onlyFinalized is used to indicate that only finalized block will be returned, can't be used together with confirmations
+	onlyFinalized bool
+	// confs are used to indicate how many confs are required, can't be used together with onlyFinalized
+	confs int
+}
+
+func WithConfirmations(confirmations int) BlockConfsOptions {
+	return BlockConfsOptions{confs: confirmations}
+}
+
+func OnlyFinalized() BlockConfsOptions {
+	return BlockConfsOptions{onlyFinalized: true}
 }
 
 type LogPollerTest interface {
@@ -123,7 +137,7 @@ type logPoller struct {
 // How fast that can be done depends largely on network speed and DB, but even for the fastest
 // support chain, polygon, which has 2s block times, we need RPCs roughly with <= 500ms latency
 func NewLogPoller(orm *ORM, ec Client, lggr logger.Logger, pollPeriod time.Duration,
-	finalityDepth int64, backfillBatchSize int64, rpcBatchSize int64, keepBlocksDepth int64) *logPoller {
+	useFinalityTag bool, finalityDepth int64, backfillBatchSize int64, rpcBatchSize int64, keepBlocksDepth int64) *logPoller {
 
 	return &logPoller{
 		ec:                ec,
@@ -133,6 +147,7 @@ func NewLogPoller(orm *ORM, ec Client, lggr logger.Logger, pollPeriod time.Durat
 		replayComplete:    make(chan error),
 		pollPeriod:        pollPeriod,
 		finalityDepth:     finalityDepth,
+		useFinalityTag:    useFinalityTag,
 		backfillBatchSize: backfillBatchSize,
 		rpcBatchSize:      rpcBatchSize,
 		keepBlocksDepth:   keepBlocksDepth,
@@ -1005,8 +1020,8 @@ func (lp *logPoller) IndexedLogsByTxHash(eventSig common.Hash, txHash common.Has
 }
 
 // LogsDataWordGreaterThan note index is 0 based.
-func (lp *logPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs int, qopts ...pg.QOpt) ([]Log, error) {
-	return lp.orm.SelectDataWordGreaterThan(address, eventSig, wordIndex, wordValueMin, confs, qopts...)
+func (lp *logPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs BlockConfsOptions, qopts ...pg.QOpt) ([]Log, error) {
+	return lp.orm.SelectDataWordGreaterThan(address, eventSig, wordIndex, wordValueMin, lp.confirmations(confs), qopts...)
 }
 
 // LogsDataWordRange note index is 0 based.
@@ -1018,12 +1033,6 @@ func (lp *logPoller) LogsDataWordRange(eventSig common.Hash, address common.Addr
 // Only works for integer topics.
 func (lp *logPoller) IndexedLogsTopicGreaterThan(eventSig common.Hash, address common.Address, topicIndex int, topicValueMin common.Hash, confs int, qopts ...pg.QOpt) ([]Log, error) {
 	return lp.orm.SelectIndexLogsTopicGreaterThan(address, eventSig, topicIndex, topicValueMin, confs, qopts...)
-}
-
-// LogsUntilBlockHashDataWordGreaterThan note index is 0 based.
-// If the blockhash is not found (i.e. a stale fork) it will error.
-func (lp *logPoller) LogsUntilBlockHashDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, untilBlockHash common.Hash, qopts ...pg.QOpt) ([]Log, error) {
-	return lp.orm.SelectUntilBlockHashDataWordGreaterThan(address, eventSig, wordIndex, wordValueMin, untilBlockHash, qopts...)
 }
 
 func (lp *logPoller) IndexedLogsTopicRange(eventSig common.Hash, address common.Address, topicIndex int, topicValueMin common.Hash, topicValueMax common.Hash, confs int, qopts ...pg.QOpt) ([]Log, error) {
@@ -1202,4 +1211,14 @@ func EvmWord(i uint64) common.Hash {
 	var b = make([]byte, 8)
 	binary.BigEndian.PutUint64(b, i)
 	return common.BytesToHash(b)
+}
+
+func (lp *logPoller) confirmations(opts BlockConfsOptions) int {
+	if opts.onlyFinalized {
+		if !lp.useFinalityTag {
+			panic("onlyFinalized can only be used with finalityTag")
+		}
+		return int(lp.getFinalityDepth())
+	}
+	return opts.confs
 }

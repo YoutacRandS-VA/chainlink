@@ -57,7 +57,7 @@ func TestLogPoller_RegisterFilter(t *testing.T) {
 	orm := NewORM(chainID, db, lggr, pgtest.NewQConfig(true))
 
 	// Set up a test chain with a log emitting contract deployed.
-	lp := NewLogPoller(orm, nil, lggr, time.Hour, 1, 1, 2, 1000)
+	lp := NewLogPoller(orm, nil, lggr, time.Hour, false, 1, 1, 2, 1000)
 
 	// We expect a zero Filter if nothing registered yet.
 	f := lp.Filter(nil, nil, nil)
@@ -211,7 +211,7 @@ func TestLogPoller_BackupPollerStartup(t *testing.T) {
 
 	ctx := testutils.Context(t)
 
-	lp := NewLogPoller(orm, ec, lggr, 1*time.Hour, 2, 3, 2, 1000)
+	lp := NewLogPoller(orm, ec, lggr, 1*time.Hour, false, 2, 3, 2, 1000)
 	lp.BackupPollAndSaveLogs(ctx, 100)
 	assert.Equal(t, int64(0), lp.backupPollerNextBlock)
 	assert.Equal(t, 1, observedLogs.FilterMessageSnippet("ran before first successful log poller run").Len())
@@ -252,7 +252,7 @@ func TestLogPoller_Replay(t *testing.T) {
 	ec.On("HeadByNumber", mock.Anything, mock.Anything).Return(&head, nil)
 	ec.On("FilterLogs", mock.Anything, mock.Anything).Return([]types.Log{log1}, nil).Once()
 	ec.On("ConfiguredChainID").Return(chainID, nil)
-	lp := NewLogPoller(orm, ec, lggr, time.Hour, 3, 3, 3, 20)
+	lp := NewLogPoller(orm, ec, lggr, time.Hour, false, 3, 3, 3, 20)
 
 	// process 1 log in block 3
 	lp.PollAndSaveLogs(tctx, 4)
@@ -458,7 +458,7 @@ func TestLogPoller_Replay(t *testing.T) {
 
 func benchmarkFilter(b *testing.B, nFilters, nAddresses, nEvents int) {
 	lggr := logger.TestLogger(b)
-	lp := NewLogPoller(nil, nil, lggr, 1*time.Hour, 2, 3, 2, 1000)
+	lp := NewLogPoller(nil, nil, lggr, 1*time.Hour, false, 2, 3, 2, 1000)
 	for i := 0; i < nFilters; i++ {
 		var addresses []common.Address
 		var events []common.Hash
