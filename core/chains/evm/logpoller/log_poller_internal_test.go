@@ -2,7 +2,9 @@ package logpoller
 
 import (
 	"context"
+	"fmt"
 	"math/big"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -11,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -454,6 +457,118 @@ func TestLogPoller_Replay(t *testing.T) {
 		require.Equal(t, 1, observedLogs.Len())
 		assert.Equal(t, observedLogs.All()[0].Message, anyErr.Error())
 	})
+}
+
+func Test_latestBlockAndFinalityDepth(t *testing.T) {
+	tctx := testutils.Context(t)
+	lggr, _ := logger.TestLoggerObserved(t, zapcore.ErrorLevel)
+	chainID := testutils.FixtureChainID
+	db := pgtest.NewSqlxDB(t)
+	orm := NewORM(chainID, db, lggr, pgtest.NewQConfig(true))
+
+	t.Run("pick latest block from chain and use finality from config with finality disabled", func(t *testing.T) {
+		head := evmtypes.Head{Number: 4}
+		finalityDepth := int64(3)
+		ec := evmclimocks.NewClient(t)
+		ec.On("HeadByNumber", mock.Anything, mock.Anything).Return(&head, nil)
+
+		lp := NewLogPoller(orm, ec, lggr, time.Hour, false, finalityDepth, 3, 3, 20)
+		latestBlock, depth, err := lp.latestBlockAndFinalityDepth(tctx)
+		require.NoError(t, err)
+		require.Equal(t, latestBlock.Number, head.Number)
+		require.Equal(t, depth, finalityDepth)
+	})
+
+	t.Run("finality tags in use", func(t *testing.T) {
+		t.Run("client returns data properly", func(t *testing.T) {
+			latestBlockNumber := int64(20)
+			finalizedBlockNumber := int64(12)
+			ec := evmclimocks.NewClient(t)
+			ec.On("BatchCallContext", mock.Anything, mock.MatchedBy(func(b []rpc.BatchElem) bool {
+				return len(b) == 2 &&
+					reflect.DeepEqual(b[0].Args, []interface{}{"latest", false}) &&
+					reflect.DeepEqual(b[1].Args, []interface{}{"finalized", false})
+			})).Return(nil).Run(func(args mock.Arguments) {
+				elems := args.Get(1).([]rpc.BatchElem)
+				// Latest block details
+				*(elems[0].Result.(*evmtypes.Head)) = evmtypes.Head{Number: latestBlockNumber}
+				// Finalized block details
+				*(elems[1].Result.(*evmtypes.Head)) = evmtypes.Head{Number: finalizedBlockNumber}
+			})
+
+			lp := NewLogPoller(orm, ec, lggr, time.Hour, true, 3, 3, 3, 20)
+
+			latestBlock, depth, err := lp.latestBlockAndFinalityDepth(tctx)
+			require.NoError(t, err)
+			require.Equal(t, latestBlockNumber, latestBlock.Number)
+			require.Equal(t, latestBlockNumber-finalizedBlockNumber, depth)
+		})
+
+		t.Run("client returns error for at least one of the calls", func(t *testing.T) {
+			ec := evmclimocks.NewClient(t)
+			ec.On("BatchCallContext", mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+				elems := args.Get(1).([]rpc.BatchElem)
+				// Latest block details
+				*(elems[0].Result.(*evmtypes.Head)) = evmtypes.Head{Number: 10}
+				// Finalized block details
+				elems[1].Error = fmt.Errorf("some error")
+			})
+
+			lp := NewLogPoller(orm, ec, lggr, time.Hour, true, 3, 3, 3, 20)
+			_, _, err := lp.latestBlockAndFinalityDepth(tctx)
+			require.Error(t, err)
+		})
+
+		t.Run("BatchCall returns an error", func(t *testing.T) {
+			ec := evmclimocks.NewClient(t)
+			ec.On("BatchCallContext", mock.Anything, mock.Anything).Return(fmt.Errorf("some error"))
+
+			lp := NewLogPoller(orm, ec, lggr, time.Hour, true, 3, 3, 3, 20)
+			_, _, err := lp.latestBlockAndFinalityDepth(tctx)
+			require.Error(t, err)
+		})
+	})
+}
+
+func Test_confirmations(t *testing.T) {
+	lggr, _ := logger.TestLoggerObserved(t, zapcore.ErrorLevel)
+	finalityDepth := 10
+	chainID := testutils.FixtureChainID
+	db := pgtest.NewSqlxDB(t)
+	ec := evmclimocks.NewClient(t)
+	orm := NewORM(chainID, db, lggr, pgtest.NewQConfig(true))
+
+	tests := []struct {
+		name      string
+		confs     BlockConfsOpt
+		wantConfs int
+	}{
+		{
+			name:      "return finality depth if useFinalityDepth is true",
+			confs:     OnlyFinalized(),
+			wantConfs: finalityDepth,
+		},
+		{
+			name:      "return confs if they are defined",
+			confs:     WithConfirmations(20),
+			wantConfs: 20,
+		},
+		{
+			name: "fallback to confs when both params are set",
+			confs: BlockConfsOpt{
+				useFinalityDepth: true,
+				confs:            1000,
+			},
+			wantConfs: 1000,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lp := NewLogPoller(orm, ec, lggr, time.Hour, false, int64(finalityDepth), 3, 3, 20)
+			require.Equal(t, tt.wantConfs, lp.confirmations(tt.confs))
+		})
+	}
 }
 
 func benchmarkFilter(b *testing.B, nFilters, nAddresses, nEvents int) {

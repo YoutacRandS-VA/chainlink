@@ -57,22 +57,31 @@ type LogPoller interface {
 	IndexedLogsTopicRange(eventSig common.Hash, address common.Address, topicIndex int, topicValueMin common.Hash, topicValueMax common.Hash, confs int, qopts ...pg.QOpt) ([]Log, error)
 	IndexedLogsWithSigsExcluding(address common.Address, eventSigA, eventSigB common.Hash, topicIndex int, fromBlock, toBlock int64, confs int, qopts ...pg.QOpt) ([]Log, error)
 	LogsDataWordRange(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin, wordValueMax common.Hash, confs int, qopts ...pg.QOpt) ([]Log, error)
-	LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs BlockConfsOptions, qopts ...pg.QOpt) ([]Log, error)
+	LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs BlockConfsOpt, qopts ...pg.QOpt) ([]Log, error)
 }
 
-type BlockConfsOptions struct {
-	// onlyFinalized is used to indicate that only finalized block will be returned, can't be used together with confirmations
-	onlyFinalized bool
-	// confs are used to indicate how many confs are required, can't be used together with onlyFinalized
+type BlockConfsOpt struct {
+	// useFinalityDepth is used to indicate that only finalized block will be returned, can't be used together with confs
+	// When LogPoller's useFinalityTag is set to true, actual finality based on the chain state will be used.
+	// Otherwise, LogPoller will pick up the finality depth from the config.
+	useFinalityDepth bool
+	// confs are used to indicate how many confirmations are required, can't be used together with useFinalityDepth
 	confs int
 }
 
-func WithConfirmations(confirmations int) BlockConfsOptions {
-	return BlockConfsOptions{confs: confirmations}
+func WithConfirmations(confirmations int) BlockConfsOpt {
+	return BlockConfsOpt{confs: confirmations}
 }
 
-func OnlyFinalized() BlockConfsOptions {
-	return BlockConfsOptions{onlyFinalized: true}
+func OnlyFinalized() BlockConfsOpt {
+	return BlockConfsOpt{useFinalityDepth: true}
+}
+
+func (o *BlockConfsOpt) Validate() error {
+	if o.useFinalityDepth && o.confs > 0 {
+		return errors.New("can't use both finality depth and confirmations")
+	}
+	return nil
 }
 
 type LogPollerTest interface {
@@ -910,9 +919,10 @@ func (lp *logPoller) latestBlockAndFinalityDepth(ctx context.Context) (*evmtypes
 		return latestBlock, lp.finalityDepth, err
 	}
 
+	// If finality is enabled, we need to get the latest and finalized blocks.
 	latest := evmtypes.Head{}
 	finalized := evmtypes.Head{}
-	if err := lp.ec.BatchCallContext(ctx, []rpc.BatchElem{
+	batch := []rpc.BatchElem{
 		{
 			Method: "eth_getBlockByNumber",
 			Args:   []interface{}{rpc.LatestBlockNumber.String(), false},
@@ -923,9 +933,18 @@ func (lp *logPoller) latestBlockAndFinalityDepth(ctx context.Context) (*evmtypes
 			Args:   []interface{}{rpc.FinalizedBlockNumber.String(), false},
 			Result: &finalized,
 		},
-	}); err != nil {
+	}
+	if err := lp.ec.BatchCallContext(ctx, batch); err != nil {
 		return nil, 0, err
 	}
+
+	// All requests have to succeed to properly update finalityDepth.
+	for _, req := range batch {
+		if req.Error != nil {
+			return nil, 0, req.Error
+		}
+	}
+
 	lp.finalityDepthMu.Lock()
 	lp.finalityDepth = latest.Number - finalized.Number
 	lp.finalityDepthMu.Unlock()
@@ -1020,7 +1039,7 @@ func (lp *logPoller) IndexedLogsByTxHash(eventSig common.Hash, txHash common.Has
 }
 
 // LogsDataWordGreaterThan note index is 0 based.
-func (lp *logPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs BlockConfsOptions, qopts ...pg.QOpt) ([]Log, error) {
+func (lp *logPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs BlockConfsOpt, qopts ...pg.QOpt) ([]Log, error) {
 	return lp.orm.SelectDataWordGreaterThan(address, eventSig, wordIndex, wordValueMin, lp.confirmations(confs), qopts...)
 }
 
@@ -1213,11 +1232,13 @@ func EvmWord(i uint64) common.Hash {
 	return common.BytesToHash(b)
 }
 
-func (lp *logPoller) confirmations(opts BlockConfsOptions) int {
-	if opts.onlyFinalized {
-		if !lp.useFinalityTag {
-			panic("onlyFinalized can only be used with finalityTag")
-		}
+func (lp *logPoller) confirmations(opts BlockConfsOpt) int {
+	if err := opts.Validate(); err != nil {
+		lp.lggr.Errorw("Invalid BlockConfsOpt", "err", err)
+		// Return the default
+		return opts.confs
+	}
+	if opts.useFinalityDepth {
 		return int(lp.getFinalityDepth())
 	}
 	return opts.confs

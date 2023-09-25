@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -24,6 +25,12 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 	"github.com/smartcontractkit/chainlink/v2/core/utils"
 )
+
+var blockByTag = map[string]func(*core.BlockChain) *types.Header{
+	rpc.SafeBlockNumber.String():      func(chain *core.BlockChain) *types.Header { return chain.CurrentSafeBlock() },
+	rpc.LatestBlockNumber.String():    func(chain *core.BlockChain) *types.Header { return chain.CurrentHeader() },
+	rpc.FinalizedBlockNumber.String(): func(chain *core.BlockChain) *types.Header { return chain.CurrentFinalBlock() },
+}
 
 // SimulatedBackendClient is an Client implementation using a simulated
 // blockchain backend. Note that not all RPC methods are implemented here.
@@ -545,7 +552,7 @@ func (c *SimulatedBackendClient) BatchCallContext(ctx context.Context, b []rpc.B
 			if len(elem.Args) != 2 {
 				return fmt.Errorf("SimulatedBackendClient expected 2 args, got %d for eth_getBlockByNumber", len(elem.Args))
 			}
-			blockNum, is := elem.Args[0].(string)
+			blockNumOrTag, is := elem.Args[0].(string)
 			if !is {
 				return fmt.Errorf("SimulatedBackendClient expected first arg to be a string for eth_getBlockByNumber, got: %T", elem.Args[0])
 			}
@@ -553,31 +560,33 @@ func (c *SimulatedBackendClient) BatchCallContext(ctx context.Context, b []rpc.B
 			if !is {
 				return fmt.Errorf("SimulatedBackendClient expected second arg to be a boolean for eth_getBlockByNumber, got: %T", elem.Args[1])
 			}
-			n, ok := new(big.Int).SetString(blockNum, 0)
-			if !ok {
-				return fmt.Errorf("error while converting block number string: %s to big.Int ", blockNum)
+
+			var header *types.Header
+			var err error
+			if blockFn, contains := blockByTag[blockNumOrTag]; contains {
+				header, err = blockFn(c.b.Blockchain()), nil
+			} else {
+				blockNum, ok := new(big.Int).SetString(blockNumOrTag, 0)
+				if !ok {
+					return fmt.Errorf("error while converting block number string: %s to big.Int ", blockNumOrTag)
+				}
+				header, err = c.b.HeaderByNumber(ctx, blockNum)
 			}
-			header, err := c.b.HeaderByNumber(ctx, n)
 			if err != nil {
 				return err
 			}
-			switch v := elem.Result.(type) {
-			case *evmtypes.Head:
-				b[i].Result = &evmtypes.Head{
-					Number:    header.Number.Int64(),
-					Hash:      header.Hash(),
-					Timestamp: time.Unix(int64(header.Time), 0).UTC(),
-				}
-			case *evmtypes.Block:
-				b[i].Result = &evmtypes.Block{
-					Number:    header.Number.Int64(),
-					Hash:      header.Hash(),
-					Timestamp: time.Unix(int64(header.Time), 0),
-				}
-			default:
-				return fmt.Errorf("SimulatedBackendClient Unexpected Type %T", v)
-			}
 
+			if res, ok := elem.Result.(*evmtypes.Head); ok {
+				res.Number = header.Number.Int64()
+				res.Hash = header.Hash()
+				res.Timestamp = time.Unix(int64(header.Time), 0).UTC()
+			} else if res, ok := elem.Result.(*evmtypes.Block); ok {
+				res.Number = header.Number.Int64()
+				res.Hash = header.Hash()
+				res.Timestamp = time.Unix(int64(header.Time), 0)
+			} else {
+				return fmt.Errorf("SimulatedBackendClient Unexpected Type %T", elem.Result)
+			}
 			b[i].Error = err
 		case "eth_call":
 			if len(elem.Args) != 2 {

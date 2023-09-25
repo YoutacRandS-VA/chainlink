@@ -523,7 +523,7 @@ func (_m *LogPoller) LogsCreatedAfter(eventSig common.Hash, address common.Addre
 }
 
 // LogsDataWordGreaterThan provides a mock function with given fields: eventSig, address, wordIndex, wordValueMin, confs, qopts
-func (_m *LogPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs logpoller.BlockConfsOptions, qopts ...pg.QOpt) ([]logpoller.Log, error) {
+func (_m *LogPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs logpoller.BlockConfsOpt, qopts ...pg.QOpt) ([]logpoller.Log, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
@@ -535,10 +535,10 @@ func (_m *LogPoller) LogsDataWordGreaterThan(eventSig common.Hash, address commo
 
 	var r0 []logpoller.Log
 	var r1 error
-	if rf, ok := ret.Get(0).(func(common.Hash, common.Address, int, common.Hash, logpoller.BlockConfsOptions, ...pg.QOpt) ([]logpoller.Log, error)); ok {
+	if rf, ok := ret.Get(0).(func(common.Hash, common.Address, int, common.Hash, logpoller.BlockConfsOpt, ...pg.QOpt) ([]logpoller.Log, error)); ok {
 		return rf(eventSig, address, wordIndex, wordValueMin, confs, qopts...)
 	}
-	if rf, ok := ret.Get(0).(func(common.Hash, common.Address, int, common.Hash, logpoller.BlockConfsOptions, ...pg.QOpt) []logpoller.Log); ok {
+	if rf, ok := ret.Get(0).(func(common.Hash, common.Address, int, common.Hash, logpoller.BlockConfsOpt, ...pg.QOpt) []logpoller.Log); ok {
 		r0 = rf(eventSig, address, wordIndex, wordValueMin, confs, qopts...)
 	} else {
 		if ret.Get(0) != nil {
@@ -546,7 +546,7 @@ func (_m *LogPoller) LogsDataWordGreaterThan(eventSig common.Hash, address commo
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(common.Hash, common.Address, int, common.Hash, logpoller.BlockConfsOptions, ...pg.QOpt) error); ok {
+	if rf, ok := ret.Get(1).(func(common.Hash, common.Address, int, common.Hash, logpoller.BlockConfsOpt, ...pg.QOpt) error); ok {
 		r1 = rf(eventSig, address, wordIndex, wordValueMin, confs, qopts...)
 	} else {
 		r1 = ret.Error(1)

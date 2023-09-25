@@ -85,7 +85,7 @@ func (disabled) LogsDataWordRange(eventSig common.Hash, address common.Address, 
 	return nil, ErrDisabled
 }
 
-func (disabled) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs BlockConfsOptions, qopts ...pg.QOpt) ([]Log, error) {
+func (disabled) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs BlockConfsOpt, qopts ...pg.QOpt) ([]Log, error) {
 	return nil, ErrDisabled
 }
 

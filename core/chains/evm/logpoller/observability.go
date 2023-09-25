@@ -140,7 +140,7 @@ func (o *ObservedLogPoller) LogsDataWordRange(eventSig common.Hash, address comm
 	})
 }
 
-func (o *ObservedLogPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs BlockConfsOptions, qopts ...pg.QOpt) ([]Log, error) {
+func (o *ObservedLogPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs BlockConfsOpt, qopts ...pg.QOpt) ([]Log, error) {
 	return withObservedQueryAndResults(o, "LogsDataWordGreaterThan", func() ([]Log, error) {
 		return o.LogPoller.LogsDataWordGreaterThan(eventSig, address, wordIndex, wordValueMin, confs, qopts...)
 	})
