@@ -558,7 +558,7 @@ func Test_confirmations(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lp := NewLogPoller(orm, ec, lggr, time.Hour, false, int64(finalityDepth), 3, 3, 20)
-			require.Equal(t, tt.wantConfs, lp.confirmations(tt.confs))
+			require.Equal(t, tt.wantConfs, lp.confirmationsToInt(tt.confs))
 		})
 	}
 }

@@ -982,12 +982,12 @@ func (lp *logPoller) LogsWithSigs(start, end int64, eventSigs []common.Hash, add
 }
 
 func (lp *logPoller) LogsCreatedAfter(eventSig common.Hash, address common.Address, after time.Time, confs Confirmations, qopts ...pg.QOpt) ([]Log, error) {
-	return lp.orm.SelectLogsCreatedAfter(address, eventSig, after, lp.confirmations(confs), qopts...)
+	return lp.orm.SelectLogsCreatedAfter(address, eventSig, after, lp.confirmationsToInt(confs), qopts...)
 }
 
 // IndexedLogs finds all the logs that have a topic value in topicValues at index topicIndex.
 func (lp *logPoller) IndexedLogs(eventSig common.Hash, address common.Address, topicIndex int, topicValues []common.Hash, confs Confirmations, qopts ...pg.QOpt) ([]Log, error) {
-	return lp.orm.SelectIndexedLogs(address, eventSig, topicIndex, topicValues, lp.confirmations(confs), qopts...)
+	return lp.orm.SelectIndexedLogs(address, eventSig, topicIndex, topicValues, lp.confirmationsToInt(confs), qopts...)
 }
 
 // IndexedLogsByBlockRange finds all the logs that have a topic value in topicValues at index topicIndex within the block range
@@ -996,7 +996,7 @@ func (lp *logPoller) IndexedLogsByBlockRange(start, end int64, eventSig common.H
 }
 
 func (lp *logPoller) IndexedLogsCreatedAfter(eventSig common.Hash, address common.Address, topicIndex int, topicValues []common.Hash, after time.Time, confs Confirmations, qopts ...pg.QOpt) ([]Log, error) {
-	return lp.orm.SelectIndexedLogsCreatedAfter(address, eventSig, topicIndex, topicValues, after, lp.confirmations(confs), qopts...)
+	return lp.orm.SelectIndexedLogsCreatedAfter(address, eventSig, topicIndex, topicValues, after, lp.confirmationsToInt(confs), qopts...)
 }
 
 func (lp *logPoller) IndexedLogsByTxHash(eventSig common.Hash, txHash common.Hash, qopts ...pg.QOpt) ([]Log, error) {
@@ -1005,22 +1005,22 @@ func (lp *logPoller) IndexedLogsByTxHash(eventSig common.Hash, txHash common.Has
 
 // LogsDataWordGreaterThan note index is 0 based.
 func (lp *logPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs Confirmations, qopts ...pg.QOpt) ([]Log, error) {
-	return lp.orm.SelectDataWordGreaterThan(address, eventSig, wordIndex, wordValueMin, lp.confirmations(confs), qopts...)
+	return lp.orm.SelectDataWordGreaterThan(address, eventSig, wordIndex, wordValueMin, lp.confirmationsToInt(confs), qopts...)
 }
 
 // LogsDataWordRange note index is 0 based.
 func (lp *logPoller) LogsDataWordRange(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin, wordValueMax common.Hash, confs Confirmations, qopts ...pg.QOpt) ([]Log, error) {
-	return lp.orm.SelectDataWordRange(address, eventSig, wordIndex, wordValueMin, wordValueMax, lp.confirmations(confs), qopts...)
+	return lp.orm.SelectDataWordRange(address, eventSig, wordIndex, wordValueMin, wordValueMax, lp.confirmationsToInt(confs), qopts...)
 }
 
 // IndexedLogsTopicGreaterThan finds all the logs that have a topic value greater than topicValueMin at index topicIndex.
 // Only works for integer topics.
 func (lp *logPoller) IndexedLogsTopicGreaterThan(eventSig common.Hash, address common.Address, topicIndex int, topicValueMin common.Hash, confs Confirmations, qopts ...pg.QOpt) ([]Log, error) {
-	return lp.orm.SelectIndexLogsTopicGreaterThan(address, eventSig, topicIndex, topicValueMin, lp.confirmations(confs), qopts...)
+	return lp.orm.SelectIndexLogsTopicGreaterThan(address, eventSig, topicIndex, topicValueMin, lp.confirmationsToInt(confs), qopts...)
 }
 
 func (lp *logPoller) IndexedLogsTopicRange(eventSig common.Hash, address common.Address, topicIndex int, topicValueMin common.Hash, topicValueMax common.Hash, confs Confirmations, qopts ...pg.QOpt) ([]Log, error) {
-	return lp.orm.SelectIndexLogsTopicRange(address, eventSig, topicIndex, topicValueMin, topicValueMax, lp.confirmations(confs), qopts...)
+	return lp.orm.SelectIndexLogsTopicRange(address, eventSig, topicIndex, topicValueMin, topicValueMax, lp.confirmationsToInt(confs), qopts...)
 }
 
 // LatestBlock returns the latest block the log poller is on. It tracks blocks to be able
@@ -1040,15 +1040,15 @@ func (lp *logPoller) BlockByNumber(n int64, qopts ...pg.QOpt) (*LogPollerBlock, 
 
 // LatestLogByEventSigWithConfs finds the latest log that has confs number of blocks on top of the log.
 func (lp *logPoller) LatestLogByEventSigWithConfs(eventSig common.Hash, address common.Address, confs Confirmations, qopts ...pg.QOpt) (*Log, error) {
-	return lp.orm.SelectLatestLogEventSigWithConfs(eventSig, address, lp.confirmations(confs), qopts...)
+	return lp.orm.SelectLatestLogEventSigWithConfs(eventSig, address, lp.confirmationsToInt(confs), qopts...)
 }
 
 func (lp *logPoller) LatestLogEventSigsAddrsWithConfs(fromBlock int64, eventSigs []common.Hash, addresses []common.Address, confs Confirmations, qopts ...pg.QOpt) ([]Log, error) {
-	return lp.orm.SelectLatestLogEventSigsAddrsWithConfs(fromBlock, addresses, eventSigs, lp.confirmations(confs), qopts...)
+	return lp.orm.SelectLatestLogEventSigsAddrsWithConfs(fromBlock, addresses, eventSigs, lp.confirmationsToInt(confs), qopts...)
 }
 
 func (lp *logPoller) LatestBlockByEventSigsAddrsWithConfs(fromBlock int64, eventSigs []common.Hash, addresses []common.Address, confs Confirmations, qopts ...pg.QOpt) (int64, error) {
-	return lp.orm.SelectLatestBlockNumberEventSigsAddrsWithConfs(fromBlock, eventSigs, addresses, lp.confirmations(confs), qopts...)
+	return lp.orm.SelectLatestBlockNumberEventSigsAddrsWithConfs(fromBlock, eventSigs, addresses, lp.confirmationsToInt(confs), qopts...)
 }
 
 // GetBlocksRange tries to get the specified block numbers from the log pollers
@@ -1204,7 +1204,7 @@ func (lp *logPoller) batchFetchBlocks(ctx context.Context, blocksRequested []str
 // For example, query to retrieve unfulfilled requests by querying request log events without matching fulfillment log events.
 // The order of events is not significant. Both logs must be inside the block range and have the minimum number of confirmations
 func (lp *logPoller) IndexedLogsWithSigsExcluding(address common.Address, eventSigA, eventSigB common.Hash, topicIndex int, fromBlock, toBlock int64, confs Confirmations, qopts ...pg.QOpt) ([]Log, error) {
-	return lp.orm.SelectIndexedLogsWithSigsExcluding(eventSigA, eventSigB, topicIndex, address, fromBlock, toBlock, lp.confirmations(confs), qopts...)
+	return lp.orm.SelectIndexedLogsWithSigsExcluding(eventSigA, eventSigB, topicIndex, address, fromBlock, toBlock, lp.confirmationsToInt(confs), qopts...)
 }
 
 func EvmWord(i uint64) common.Hash {
@@ -1213,7 +1213,7 @@ func EvmWord(i uint64) common.Hash {
 	return common.BytesToHash(b)
 }
 
-func (lp *logPoller) confirmations(confs Confirmations) int {
+func (lp *logPoller) confirmationsToInt(confs Confirmations) int {
 	if confs == Finalized {
 		return int(lp.getFinalityDepth())
 	}

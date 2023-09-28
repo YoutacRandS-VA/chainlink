@@ -15,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 
@@ -25,12 +24,6 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 	"github.com/smartcontractkit/chainlink/v2/core/utils"
 )
-
-var blockByTag = map[string]func(*core.BlockChain) *types.Header{
-	rpc.SafeBlockNumber.String():      func(chain *core.BlockChain) *types.Header { return chain.CurrentSafeBlock() },
-	rpc.LatestBlockNumber.String():    func(chain *core.BlockChain) *types.Header { return chain.CurrentHeader() },
-	rpc.FinalizedBlockNumber.String(): func(chain *core.BlockChain) *types.Header { return chain.CurrentFinalBlock() },
-}
 
 // SimulatedBackendClient is an Client implementation using a simulated
 // blockchain backend. Note that not all RPC methods are implemented here.
@@ -560,31 +553,17 @@ func (c *SimulatedBackendClient) BatchCallContext(ctx context.Context, b []rpc.B
 			if !is {
 				return fmt.Errorf("SimulatedBackendClient expected second arg to be a boolean for eth_getBlockByNumber, got: %T", elem.Args[1])
 			}
-
-			var header *types.Header
-			var err error
-			if blockFn, contains := blockByTag[blockNumOrTag]; contains {
-				header, err = blockFn(c.b.Blockchain()), nil
-			} else {
-				blockNum, ok := new(big.Int).SetString(blockNumOrTag, 0)
-				if !ok {
-					return fmt.Errorf("error while converting block number string: %s to big.Int ", blockNumOrTag)
-				}
-				header, err = c.b.HeaderByNumber(ctx, blockNum)
-			}
+			header, err := c.fetchHeader(ctx, blockNumOrTag)
 			if err != nil {
 				return err
 			}
-
-			if res, ok := elem.Result.(*evmtypes.Head); ok {
+			switch res := elem.Result.(type) {
+			case *evmtypes.Head:
+			case *evmtypes.Block:
 				res.Number = header.Number.Int64()
 				res.Hash = header.Hash()
 				res.Timestamp = time.Unix(int64(header.Time), 0).UTC()
-			} else if res, ok := elem.Result.(*evmtypes.Block); ok {
-				res.Number = header.Number.Int64()
-				res.Hash = header.Hash()
-				res.Timestamp = time.Unix(int64(header.Time), 0)
-			} else {
+			default:
 				return fmt.Errorf("SimulatedBackendClient Unexpected Type %T", elem.Result)
 			}
 			b[i].Error = err
@@ -726,4 +705,21 @@ func toCallMsg(params map[string]interface{}) ethereum.CallMsg {
 
 func (c *SimulatedBackendClient) IsL2() bool {
 	return false
+}
+
+func (c *SimulatedBackendClient) fetchHeader(ctx context.Context, blockNumOrTag string) (*types.Header, error) {
+	switch blockNumOrTag {
+	case rpc.SafeBlockNumber.String():
+		return c.b.Blockchain().CurrentSafeBlock(), nil
+	case rpc.LatestBlockNumber.String():
+		return c.b.Blockchain().CurrentBlock(), nil
+	case rpc.FinalizedBlockNumber.String():
+		return c.b.Blockchain().CurrentFinalBlock(), nil
+	default:
+		blockNum, ok := new(big.Int).SetString(blockNumOrTag, 0)
+		if !ok {
+			return nil, fmt.Errorf("error while converting block number string: %s to big.Int ", blockNumOrTag)
+		}
+		return c.b.HeaderByNumber(ctx, blockNum)
+	}
 }
