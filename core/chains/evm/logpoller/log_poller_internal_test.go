@@ -540,26 +540,18 @@ func Test_confirmations(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		confs     BlockConfsOpt
+		confs     Confirmations
 		wantConfs int
 	}{
 		{
 			name:      "return finality depth if useFinalityDepth is true",
-			confs:     OnlyFinalized(),
+			confs:     Finalized,
 			wantConfs: finalityDepth,
 		},
 		{
 			name:      "return confs if they are defined",
-			confs:     WithConfirmations(20),
+			confs:     20,
 			wantConfs: 20,
-		},
-		{
-			name: "fallback to confs when both params are set",
-			confs: BlockConfsOpt{
-				useFinalityDepth: true,
-				confs:            1000,
-			},
-			wantConfs: 1000,
 		},
 	}
 

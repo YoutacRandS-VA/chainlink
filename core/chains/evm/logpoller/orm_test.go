@@ -1158,7 +1158,7 @@ func TestSelectLatestBlockNumberEventSigsAddrsWithConfs(t *testing.T) {
 }
 
 func TestSelectLogsCreatedAfter(t *testing.T) {
-	th := SetupTH(t, 2, 3, 2)
+	th := SetupTH(t, false, 2, 3, 2)
 	event := EmitterABI.Events["Log1"].ID
 	address := utils.RandomAddress()
 

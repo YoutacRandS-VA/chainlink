@@ -211,7 +211,7 @@ func (p *mockLogPoller) GetBlocksRange(ctx context.Context, numbers []uint64, qo
 	return p.GetBlocksRangeFn(ctx, numbers, qopts...)
 }
 
-func (p *mockLogPoller) IndexedLogs(eventSig common.Hash, address common.Address, topicIndex int, topicValues []common.Hash, confs int, qopts ...pg.QOpt) ([]logpoller.Log, error) {
+func (p *mockLogPoller) IndexedLogs(eventSig common.Hash, address common.Address, topicIndex int, topicValues []common.Hash, confs logpoller.Confirmations, qopts ...pg.QOpt) ([]logpoller.Log, error) {
 	return p.IndexedLogsFn(eventSig, address, topicIndex, topicValues, confs, qopts...)
 }
 

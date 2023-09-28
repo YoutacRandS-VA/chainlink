@@ -99,7 +99,7 @@ func (_m *LogPoller) HealthReport() map[string]error {
 }
 
 // IndexedLogs provides a mock function with given fields: eventSig, address, topicIndex, topicValues, confs, qopts
-func (_m *LogPoller) IndexedLogs(eventSig common.Hash, address common.Address, topicIndex int, topicValues []common.Hash, confs int, qopts ...pg.QOpt) ([]logpoller.Log, error) {
+func (_m *LogPoller) IndexedLogs(eventSig common.Hash, address common.Address, topicIndex int, topicValues []common.Hash, confs logpoller.Confirmations, qopts ...pg.QOpt) ([]logpoller.Log, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
@@ -198,7 +198,7 @@ func (_m *LogPoller) IndexedLogsByTxHash(eventSig common.Hash, txHash common.Has
 }
 
 // IndexedLogsCreatedAfter provides a mock function with given fields: eventSig, address, topicIndex, topicValues, after, confs, qopts
-func (_m *LogPoller) IndexedLogsCreatedAfter(eventSig common.Hash, address common.Address, topicIndex int, topicValues []common.Hash, after time.Time, confs int, qopts ...pg.QOpt) ([]logpoller.Log, error) {
+func (_m *LogPoller) IndexedLogsCreatedAfter(eventSig common.Hash, address common.Address, topicIndex int, topicValues []common.Hash, after time.Time, confs logpoller.Confirmations, qopts ...pg.QOpt) ([]logpoller.Log, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
@@ -231,7 +231,7 @@ func (_m *LogPoller) IndexedLogsCreatedAfter(eventSig common.Hash, address commo
 }
 
 // IndexedLogsTopicGreaterThan provides a mock function with given fields: eventSig, address, topicIndex, topicValueMin, confs, qopts
-func (_m *LogPoller) IndexedLogsTopicGreaterThan(eventSig common.Hash, address common.Address, topicIndex int, topicValueMin common.Hash, confs int, qopts ...pg.QOpt) ([]logpoller.Log, error) {
+func (_m *LogPoller) IndexedLogsTopicGreaterThan(eventSig common.Hash, address common.Address, topicIndex int, topicValueMin common.Hash, confs logpoller.Confirmations, qopts ...pg.QOpt) ([]logpoller.Log, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
@@ -264,7 +264,7 @@ func (_m *LogPoller) IndexedLogsTopicGreaterThan(eventSig common.Hash, address c
 }
 
 // IndexedLogsTopicRange provides a mock function with given fields: eventSig, address, topicIndex, topicValueMin, topicValueMax, confs, qopts
-func (_m *LogPoller) IndexedLogsTopicRange(eventSig common.Hash, address common.Address, topicIndex int, topicValueMin common.Hash, topicValueMax common.Hash, confs int, qopts ...pg.QOpt) ([]logpoller.Log, error) {
+func (_m *LogPoller) IndexedLogsTopicRange(eventSig common.Hash, address common.Address, topicIndex int, topicValueMin common.Hash, topicValueMax common.Hash, confs logpoller.Confirmations, qopts ...pg.QOpt) ([]logpoller.Log, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
@@ -297,7 +297,7 @@ func (_m *LogPoller) IndexedLogsTopicRange(eventSig common.Hash, address common.
 }
 
 // IndexedLogsWithSigsExcluding provides a mock function with given fields: address, eventSigA, eventSigB, topicIndex, fromBlock, toBlock, confs, qopts
-func (_m *LogPoller) IndexedLogsWithSigsExcluding(address common.Address, eventSigA common.Hash, eventSigB common.Hash, topicIndex int, fromBlock int64, toBlock int64, confs int, qopts ...pg.QOpt) ([]logpoller.Log, error) {
+func (_m *LogPoller) IndexedLogsWithSigsExcluding(address common.Address, eventSigA, eventSigB common.Hash, topicIndex int, fromBlock, toBlock int64, confs logpoller.Confirmations, qopts ...pg.QOpt) ([]logpoller.Log, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
@@ -360,7 +360,7 @@ func (_m *LogPoller) LatestBlock(qopts ...pg.QOpt) (int64, error) {
 }
 
 // LatestBlockByEventSigsAddrsWithConfs provides a mock function with given fields: fromBlock, eventSigs, addresses, confs, qopts
-func (_m *LogPoller) LatestBlockByEventSigsAddrsWithConfs(fromBlock int64, eventSigs []common.Hash, addresses []common.Address, confs int, qopts ...pg.QOpt) (int64, error) {
+func (_m *LogPoller) LatestBlockByEventSigsAddrsWithConfs(fromBlock int64, eventSigs []common.Hash, addresses []common.Address, confs logpoller.Confirmations, qopts ...pg.QOpt) (int64, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
@@ -391,7 +391,7 @@ func (_m *LogPoller) LatestBlockByEventSigsAddrsWithConfs(fromBlock int64, event
 }
 
 // LatestLogByEventSigWithConfs provides a mock function with given fields: eventSig, address, confs, qopts
-func (_m *LogPoller) LatestLogByEventSigWithConfs(eventSig common.Hash, address common.Address, confs int, qopts ...pg.QOpt) (*logpoller.Log, error) {
+func (_m *LogPoller) LatestLogByEventSigWithConfs(eventSig common.Hash, address common.Address, confs logpoller.Confirmations, qopts ...pg.QOpt) (*logpoller.Log, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
@@ -424,7 +424,7 @@ func (_m *LogPoller) LatestLogByEventSigWithConfs(eventSig common.Hash, address 
 }
 
 // LatestLogEventSigsAddrsWithConfs provides a mock function with given fields: fromBlock, eventSigs, addresses, confs, qopts
-func (_m *LogPoller) LatestLogEventSigsAddrsWithConfs(fromBlock int64, eventSigs []common.Hash, addresses []common.Address, confs int, qopts ...pg.QOpt) ([]logpoller.Log, error) {
+func (_m *LogPoller) LatestLogEventSigsAddrsWithConfs(fromBlock int64, eventSigs []common.Hash, addresses []common.Address, confs logpoller.Confirmations, qopts ...pg.QOpt) ([]logpoller.Log, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
@@ -490,7 +490,7 @@ func (_m *LogPoller) Logs(start int64, end int64, eventSig common.Hash, address 
 }
 
 // LogsCreatedAfter provides a mock function with given fields: eventSig, address, _a2, confs, qopts
-func (_m *LogPoller) LogsCreatedAfter(eventSig common.Hash, address common.Address, _a2 time.Time, confs int, qopts ...pg.QOpt) ([]logpoller.Log, error) {
+func (_m *LogPoller) LogsCreatedAfter(eventSig common.Hash, address common.Address, time time.Time, confs logpoller.Confirmations, qopts ...pg.QOpt) ([]logpoller.Log, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
@@ -523,7 +523,7 @@ func (_m *LogPoller) LogsCreatedAfter(eventSig common.Hash, address common.Addre
 }
 
 // LogsDataWordGreaterThan provides a mock function with given fields: eventSig, address, wordIndex, wordValueMin, confs, qopts
-func (_m *LogPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs logpoller.BlockConfsOpt, qopts ...pg.QOpt) ([]logpoller.Log, error) {
+func (_m *LogPoller) LogsDataWordGreaterThan(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, confs logpoller.Confirmations, qopts ...pg.QOpt) ([]logpoller.Log, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
@@ -556,7 +556,7 @@ func (_m *LogPoller) LogsDataWordGreaterThan(eventSig common.Hash, address commo
 }
 
 // LogsDataWordRange provides a mock function with given fields: eventSig, address, wordIndex, wordValueMin, wordValueMax, confs, qopts
-func (_m *LogPoller) LogsDataWordRange(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin common.Hash, wordValueMax common.Hash, confs int, qopts ...pg.QOpt) ([]logpoller.Log, error) {
+func (_m *LogPoller) LogsDataWordRange(eventSig common.Hash, address common.Address, wordIndex int, wordValueMin, wordValueMax common.Hash, confs logpoller.Confirmations, qopts ...pg.QOpt) ([]logpoller.Log, error) {
 	_va := make([]interface{}, len(qopts))
 	for _i := range qopts {
 		_va[_i] = qopts[_i]
