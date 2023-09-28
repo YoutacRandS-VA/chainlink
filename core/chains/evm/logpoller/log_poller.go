@@ -807,8 +807,11 @@ func (lp *logPoller) getCurrentBlockMaybeHandleReorg(ctx context.Context, curren
 // conditions this would be equal to lastProcessed.BlockNumber + 1.
 func (lp *logPoller) PollAndSaveLogs(ctx context.Context, currentBlockNumber int64) {
 	lp.lggr.Debugw("Polling for logs", "currentBlockNumber", currentBlockNumber)
-	// If finality is enabled, it's critical to use the finalityDepth returned here, instead of getting one from logPoller.
-	// This is defensive approach to make sure that finalityDepth is not updated by any other Goroutine, during the execution of this function.
+	// Intentionally not using logPoller.finalityDepth but the one returned from the function.
+	// This is a defensive approach to increase multithreading safety, in case of multiple Log Poller's writers running concurrently.
+	// LogPoller uses channels to avoid multithreading writes to this variable, but additionally we want to use
+	// local variable instead of accessing it from the field every time, as an extra safety measure.
+	// Also, it gives some performance boost, as we don't need to lock/unlock mutex so often.
 	latestBlock, finalityDepth, err := lp.latestBlockAndFinalityDepth(ctx)
 
 	if err != nil {
