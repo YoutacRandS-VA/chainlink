@@ -920,35 +920,17 @@ func (lp *logPoller) latestBlockAndFinalityDepth(ctx context.Context) (*evmtypes
 	}
 
 	// If finality is enabled, we need to get the latest and finalized blocks.
-	latest := evmtypes.Head{}
-	finalized := evmtypes.Head{}
-	batch := []rpc.BatchElem{
-		{
-			Method: "eth_getBlockByNumber",
-			Args:   []interface{}{rpc.LatestBlockNumber.String(), false},
-			Result: &latest,
-		},
-		{
-			Method: "eth_getBlockByNumber",
-			Args:   []interface{}{rpc.FinalizedBlockNumber.String(), false},
-			Result: &finalized,
-		},
-	}
-	if err := lp.ec.BatchCallContext(ctx, batch); err != nil {
+	blocks, err := lp.batchFetchBlocks(ctx, []string{rpc.LatestBlockNumber.String(), rpc.FinalizedBlockNumber.String()}, 2)
+	if err != nil {
 		return nil, 0, err
 	}
-
-	// All requests have to succeed to properly update finalityDepth.
-	for _, req := range batch {
-		if req.Error != nil {
-			return nil, 0, req.Error
-		}
-	}
+	latest := blocks[0]
+	finalized := blocks[1]
 
 	lp.finalityDepthMu.Lock()
 	lp.finalityDepth = latest.Number - finalized.Number
 	lp.finalityDepthMu.Unlock()
-	return &latest, latest.Number - finalized.Number, nil
+	return latest, latest.Number - finalized.Number, nil
 }
 
 // Find the first place where our chain and their chain have the same block,
@@ -1156,17 +1138,10 @@ func (lp *logPoller) fillRemainingBlocksFromRPC(
 	blocksRequested map[uint64]struct{},
 	blocksFound map[uint64]LogPollerBlock,
 ) (map[uint64]LogPollerBlock, error) {
-	var reqs []rpc.BatchElem
-	var remainingBlocks []uint64
+	var remainingBlocks []string
 	for num := range blocksRequested {
 		if _, ok := blocksFound[num]; !ok {
-			req := rpc.BatchElem{
-				Method: "eth_getBlockByNumber",
-				Args:   []interface{}{hexutil.EncodeBig(big.NewInt(0).SetUint64(num)), false},
-				Result: &evmtypes.Head{},
-			}
-			reqs = append(reqs, req)
-			remainingBlocks = append(remainingBlocks, num)
+			remainingBlocks = append(remainingBlocks, hexutil.EncodeBig(new(big.Int).SetUint64(num)))
 		}
 	}
 
@@ -1175,8 +1150,37 @@ func (lp *logPoller) fillRemainingBlocksFromRPC(
 			"remainingBlocks", remainingBlocks)
 	}
 
-	for i := 0; i < len(reqs); i += int(lp.rpcBatchSize) {
-		j := i + int(lp.rpcBatchSize)
+	evmBlocks, err := lp.batchFetchBlocks(ctx, remainingBlocks, lp.rpcBatchSize)
+	if err != nil {
+		return nil, err
+	}
+
+	logPollerBlocks := make(map[uint64]LogPollerBlock)
+	for _, head := range evmBlocks {
+		logPollerBlocks[uint64(head.Number)] = LogPollerBlock{
+			EvmChainId:     head.EVMChainID,
+			BlockHash:      head.Hash,
+			BlockNumber:    head.Number,
+			BlockTimestamp: head.Timestamp,
+			CreatedAt:      head.Timestamp,
+		}
+	}
+	return logPollerBlocks, nil
+}
+
+func (lp *logPoller) batchFetchBlocks(ctx context.Context, blocksRequested []string, batchSize int64) ([]*evmtypes.Head, error) {
+	reqs := make([]rpc.BatchElem, 0, len(blocksRequested))
+	for _, num := range blocksRequested {
+		req := rpc.BatchElem{
+			Method: "eth_getBlockByNumber",
+			Args:   []interface{}{num, false},
+			Result: &evmtypes.Head{},
+		}
+		reqs = append(reqs, req)
+	}
+
+	for i := 0; i < len(reqs); i += int(batchSize) {
+		j := i + int(batchSize)
 		if j > len(reqs) {
 			j = len(reqs)
 		}
@@ -1187,7 +1191,7 @@ func (lp *logPoller) fillRemainingBlocksFromRPC(
 		}
 	}
 
-	var blocksFoundFromRPC = make(map[uint64]LogPollerBlock)
+	var blocks = make([]*evmtypes.Head, 0, len(reqs))
 	for _, r := range reqs {
 		if r.Error != nil {
 			return nil, r.Error
@@ -1206,16 +1210,10 @@ func (lp *logPoller) fillRemainingBlocksFromRPC(
 		if block.Number < 0 {
 			return nil, errors.Errorf("expected block number to be >= to 0, got %d", block.Number)
 		}
-		blocksFoundFromRPC[uint64(block.Number)] = LogPollerBlock{
-			EvmChainId:     block.EVMChainID,
-			BlockHash:      block.Hash,
-			BlockNumber:    block.Number,
-			BlockTimestamp: block.Timestamp,
-			CreatedAt:      block.Timestamp,
-		}
+		blocks = append(blocks, block)
 	}
 
-	return blocksFoundFromRPC, nil
+	return blocks, nil
 }
 
 // IndexedLogsWithSigsExcluding returns the set difference(A-B) of logs with signature sigA and sigB, matching is done on the topics index
