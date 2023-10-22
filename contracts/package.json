@@ -31,7 +31,7 @@
     }
   },
   "devDependencies": {
-    "@ethereum-waffle/mock-contract": "^3.3.0",
+    "@ethereum-waffle/mock-contract": "^4.0.4",
     "@ethersproject/abi": "~5.7.0",
     "@ethersproject/bignumber": "~5.7.0",
     "@ethersproject/contracts": "~5.7.0",
